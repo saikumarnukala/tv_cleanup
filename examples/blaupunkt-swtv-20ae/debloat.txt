@@ -1,0 +1,24 @@
+# Blaupunkt SWTV-20AE (SW4H, Skyworth/MediaTek), Android TV 11 (SDK 30), build RTM5.220609.106
+# Stock launcher: com.google.android.tvlauncher (replaced by com.gathin.tvhome)
+
+# Skyworth / SmartDevice telemetry, recommendations, shop demos
+com.smartdevice.acr.recommendation
+com.smartdevice.recommendation
+com.smartdevice.leanbacklauncher.customizer
+com.google.android.leanbacklauncher.partnercustomizer
+com.smartdevice.epopplayer
+fusion.android.tv.demo
+com.Smartdevice.emanual
+com.smartdevice.tvworkwithalexa
+com.google.android.tvrecommendations
+com.mediatek.wwtv.tvrecommendation
+com.google.android.feedback
+com.qjy.browser
+com.sky.market
+com.google.android.marvin.talkback
+
+# User opted out (Play Games, Videos, Music, Backdrop)
+com.google.android.play.games
+com.google.android.youtube.tvmusic
+com.google.android.videos
+com.google.android.backdrop

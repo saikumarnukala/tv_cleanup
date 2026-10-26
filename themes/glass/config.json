@@ -3,9 +3,8 @@
     "com.netflix.ninja",
     "com.google.android.youtube.tv",
     "com.amazon.amazonvideo.livingroom",
-    "com.disney.disneyplus",
-    "com.wbd.stream",
-    "com.apple.atve.androidtv.appletv"
+    "in.startv.hotstar",
+    "app.netmirror.newtv"
   ],
   "background_color": "#090C14",
   "wallpaper": true,
@@ -15,5 +14,7 @@
   "app_glow": true,
   "glow_style": "horizon",
   "focus_overshoot": false,
-  "advanced_effects": true
+  "advanced_effects": true,
+  "show_stats": true,
+  "tile_menu": true
 }

@@ -5,10 +5,12 @@ launcher/.gradle/
 launcher/build/
 launcher/app/build/
 launcher/local.properties
+.venv/
+bench-results/
 # your own TV's dumps (serial, android_id, device names) stay local
-backup/
+backup*/
 # session screenshots and working notes (may show the Wi-Fi name or account avatar) stay local
-shots/
+shots*/
 work/
 # Perfetto traces from tools/trace.py: large, and they hold the TV's process list
 traces/

@@ -2194,7 +2194,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** RAM usage as {used, total} in MB, used = MemTotal - MemAvailable, e.g. "945 / 1536 MB". Used over
      *  free so the line reads as a load against a known whole; null when /proc/meminfo cannot be read. */
     private long[] memUsedOfTotalMb() {
-        long available = -1, total = -1;
+        long available = -1, total = -1, free = -1, buffers = 0, cached = 0;
         try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader("/proc/meminfo"))) {
             String line;
             String[] t;
@@ -2205,11 +2205,24 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 } else if (line.startsWith("MemTotal:")) {
                     t = line.split("\\s+");
                     if (t.length >= 2) total = Long.parseLong(t[1]) / 1024;
+                } else if (line.startsWith("MemFree:")) {
+                    t = line.split("\\s+");
+                    if (t.length >= 2) free = Long.parseLong(t[1]) / 1024;
+                } else if (line.startsWith("Buffers:")) {
+                    t = line.split("\\s+");
+                    if (t.length >= 2) buffers = Long.parseLong(t[1]) / 1024;
+                } else if (line.startsWith("Cached:")) {
+                    t = line.split("\\s+");
+                    if (t.length >= 2) cached = Long.parseLong(t[1]) / 1024;
                 }
             }
         } catch (IOException | NumberFormatException ignored) {
         }
-        if (available < 0 || total <= 0) return null;
+        if (total <= 0) return null;
+        if (available < 0 || available > total) {
+            if (free >= 0) available = free + buffers + cached;
+            else return null;
+        }
         return new long[]{Math.max(0, total - available), total};
     }
 
