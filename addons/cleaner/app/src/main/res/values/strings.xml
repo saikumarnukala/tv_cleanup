@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Cleaner</string>
+    <string name="btn_boost">⚡ 1-Click Memory Boost</string>
+    <string name="btn_manage_apps">📦 Manage App Caches</string>
+    <string name="btn_exit">Exit</string>
+    <string name="status_ready">System status is active. Press Boost to free RAM.</string>
+</resources>
