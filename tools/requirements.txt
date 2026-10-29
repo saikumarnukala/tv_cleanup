@@ -1,3 +1,5 @@
 adb-shell==0.4.4
 rsa==4.9.1
 cryptography>=46.0.7
+samsungctl==0.7.1
+websocket-client>=1.6.0
