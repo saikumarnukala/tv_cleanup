@@ -12,6 +12,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Reconfigure stdout/stderr to avoid Windows cp1252 encoding errors
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "tools"
 PYTHON = sys.executable
@@ -94,33 +101,33 @@ def clean_tv(host: str, close_adb: bool = False) -> bool:
     model = probe.get("ro.product.model", "Android TV")
     release = probe.get("ro.build.version.release", "Unknown")
     manufacturer = probe.get("ro.product.manufacturer", "")
-    print(f"[✓] Connected: {manufacturer} {model} (Android {release})")
+    print(f"[OK] Connected: {manufacturer} {model} (Android {release})")
 
     # 1. Check initial memory and storage
     _, mem_before = run_tv_cmd(host, "free -m")
     _, disk_before = run_tv_cmd(host, "df -h /data")
-    print(f"    Memory before:  {parse_free_mem(mem_before)}")
-    print(f"    Storage before: {parse_free_disk(disk_before)}")
+    print(f"     Memory before:  {parse_free_mem(mem_before)}")
+    print(f"     Storage before: {parse_free_disk(disk_before)}")
 
     # 2. Trim caches (2 GB threshold)
-    print("    Trimming application caches...")
+    print("     Trimming application caches...")
     code, _ = run_tv_cmd(host, "pm trim-caches 2000000000")
     if code != 0:
-        print("    [!] Note: trim-caches returned non-zero, continuing...")
+        print("     [!] Note: trim-caches returned non-zero, continuing...")
 
     # 3. Check updated memory and storage
     _, mem_after = run_tv_cmd(host, "free -m")
     _, disk_after = run_tv_cmd(host, "df -h /data")
-    print(f"[✓] Cache trimmed successfully!")
-    print(f"    Memory after:   {parse_free_mem(mem_after)}")
-    print(f"    Storage after:  {parse_free_disk(disk_after)}")
+    print(f"[OK] Cache trimmed successfully!")
+    print(f"     Memory after:   {parse_free_mem(mem_after)}")
+    print(f"     Storage after:  {parse_free_disk(disk_after)}")
 
     # 4. Optional ADB shutdown
     if close_adb:
         if "Amazon" in manufacturer or "AFT" in model:
-            print("    Securing device: turning off ADB...")
+            print("     Securing device: turning off ADB...")
             run_tv_cmd(host, "settings put global adb_enabled 0")
-            print("    [✓] ADB disabled on Fire TV.")
+            print("     [OK] ADB disabled on Fire TV.")
         else:
             print("    [i] Reminder: Please disable USB Debugging in Developer Options on this TV.")
 
