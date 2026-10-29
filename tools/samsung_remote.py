@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Interactive Wi-Fi Remote Control for Samsung Smart TVs (H-Series / Tizen).
+"""Wi-Fi Remote Control for Samsung Smart TV (H-Series / UN32H5500).
 
-Works over local Wi-Fi without needing the physical remote control.
+Uses encrypted WebSocket protocol with paired session token.
 Usage:
     python tools/samsung_remote.py
     python tools/samsung_remote.py KEY_VOLUP
     python tools/samsung_remote.py KEY_SOURCE
 """
+import asyncio
 import json
 import os
 import sys
-import time
+from pathlib import Path
 
 # Windows console encoding safeguard
 for _stream in (sys.stdout, sys.stderr):
@@ -19,13 +20,9 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-try:
-    import samsungctl
-except ImportError:
-    sys.exit("samsungctl is required. Run: pip install samsungctl websocket-client")
-
+ROOT = Path(__file__).resolve().parent.parent
+TOKEN_FILE = ROOT / ".samsung_token.json"
 DEFAULT_IP = "192.168.31.130"
-PORT = 8001
 
 KEY_MAP = {
     "w": "KEY_UP",
@@ -45,23 +42,58 @@ KEY_MAP = {
     "i": "KEY_INFO",
     "ok": "KEY_ENTER",
     "enter": "KEY_ENTER",
+    "tools": "KEY_TOOLS",
 }
 
 
-def get_remote(ip: str):
-    config = {
-        "name": "AntigravityRemote",
-        "description": "PC Remote",
-        "id": "",
-        "host": ip,
-        "port": PORT,
-        "method": "websocket",
-        "timeout": 5,
-    }
-    return samsungctl.Remote(config)
+def load_token_data():
+    if TOKEN_FILE.exists():
+        try:
+            with open(TOKEN_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
 
 
-def interactive_mode(remote, ip: str):
+async def send_single_key(key_name: str, ip: str = DEFAULT_IP):
+    import aiohttp
+    from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote, SendRemoteKey
+
+    token_data = load_token_data()
+    if not token_data:
+        print("[!] No pairing token found. Run pairing first.")
+        return False
+
+    async with aiohttp.ClientSession() as session:
+        remote = SamsungTVEncryptedWSAsyncRemote(
+            token_data.get("ip", ip),
+            web_session=session,
+            token=token_data["token"],
+            session_id=token_data["session_id"],
+            port=8000,
+            timeout=4.0,
+        )
+        try:
+            await remote.start_listening()
+            await remote.send_command(SendRemoteKey.click(key_name))
+            await asyncio.sleep(0.3)
+            await remote.close()
+            return True
+        except Exception as e:
+            print(f"[!] Send error: {e}")
+            return False
+
+
+async def interactive_session(ip: str = DEFAULT_IP):
+    import aiohttp
+    from samsungtvws.encrypted.remote import SamsungTVEncryptedWSAsyncRemote, SendRemoteKey
+
+    token_data = load_token_data()
+    if not token_data:
+        print("[!] No pairing token found. Run pairing first.")
+        return
+
     print("======================================================")
     print(f"     Samsung Smart TV Wi-Fi Remote ({ip})           ")
     print("======================================================")
@@ -76,70 +108,68 @@ def interactive_mode(remote, ip: str):
     print("======================================================")
     print("Type key and press Enter (or enter full KEY_NAME). 'q' to exit.\n")
 
-    while True:
-        try:
-            cmd = input("Samsung Remote > ").strip().lower()
-            if not cmd:
-                continue
-            if cmd in ("q", "quit", "exit"):
-                break
+    async with aiohttp.ClientSession() as session:
+        remote = SamsungTVEncryptedWSAsyncRemote(
+            token_data.get("ip", ip),
+            web_session=session,
+            token=token_data["token"],
+            session_id=token_data["session_id"],
+            port=8000,
+            timeout=4.0,
+        )
+        await remote.start_listening()
+        print("[OK] Connected to Samsung TV! Ready for commands.\n")
 
-            target_key = KEY_MAP.get(cmd)
-            if not target_key:
-                if cmd.upper().startswith("KEY_"):
-                    target_key = cmd.upper()
-                else:
-                    print(f"Unknown command: '{cmd}'. Use W/A/S/D/1/2/3/M/P or Q.")
-                    continue
-
-            remote.control(target_key)
-            print(f"[OK] Sent: {target_key}")
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            print(f"[!] Error sending key: {e}")
+        while True:
             try:
-                remote = get_remote(ip)
-            except Exception:
-                pass
+                cmd = await asyncio.get_event_loop().run_in_executor(None, lambda: input("Samsung Remote > ").strip().lower())
+                if not cmd:
+                    continue
+                if cmd in ("q", "quit", "exit"):
+                    break
 
-    print("Remote session closed.")
+                target_key = KEY_MAP.get(cmd)
+                if not target_key:
+                    if cmd.upper().startswith("KEY_"):
+                        target_key = cmd.upper()
+                    else:
+                        print(f"Unknown command: '{cmd}'. Use W/A/S/D/1/2/3/M/P or Q.")
+                        continue
+
+                await remote.send_command(SendRemoteKey.click(target_key))
+                print(f"[OK] Sent: {target_key}")
+            except (KeyboardInterrupt, EOFError):
+                break
+            except Exception as e:
+                print(f"[!] Error: {e}")
+
+        await remote.close()
+        print("Remote session closed.")
 
 
 def main():
     args = sys.argv[1:]
     target_ip = DEFAULT_IP
 
-    # Allow custom IP if provided as first arg
     if args and "." in args[0]:
         target_ip = args.pop(0)
 
-    # Direct key execution mode
+    # CLI direct key mode
     if args:
-        key_input = args[0]
-        target_key = KEY_MAP.get(key_input.lower(), key_input)
+        raw_key = args[0]
+        target_key = KEY_MAP.get(raw_key.lower(), raw_key)
         if not target_key.startswith("KEY_"):
             target_key = f"KEY_{target_key.upper()}"
-
-        print(f"Connecting to Samsung TV at {target_ip}...")
-        try:
-            with get_remote(target_ip) as remote:
-                remote.control(target_key)
-                print(f"[OK] Successfully sent {target_key} to TV!")
-        except Exception as e:
-            print(f"[!] Failed to send {target_key}: {e}")
+        print(f"Sending {target_key} to Samsung TV at {target_ip}...")
+        success = asyncio.run(send_single_key(target_key, target_ip))
+        if success:
+            print("[OK] Command executed on TV!")
+        else:
+            print("[!] Command failed.")
         return
 
-    # Interactive remote mode
-    print(f"Connecting to Samsung Smart TV at {target_ip}:8001...")
-    try:
-        remote = get_remote(target_ip)
-        print(f"[OK] Connected to Samsung TV at {target_ip}!")
-        interactive_mode(remote, target_ip)
-        remote.close()
-    except Exception as e:
-        print(f"[!] Could not connect to Samsung TV at {target_ip}:8001: {e}")
-        print("    Ensure the TV is powered ON and connected to Wi-Fi.")
+    # Interactive mode
+    asyncio.run(interactive_session(target_ip))
 
 
 if __name__ == "__main__":

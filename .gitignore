@@ -14,6 +14,7 @@ shots*/
 work/
 .local_devices.json
 *.local.json
+.samsung_token.json
 # Perfetto traces from tools/trace.py: large, and they hold the TV's process list
 traces/
 .DS_Store
